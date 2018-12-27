@@ -10,15 +10,13 @@
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-
+#include "shm-wrappers.h"
 int main() {
     int shared_mem_id[3];
 int *player_connected[3];
 for(int i=0; i<3; i++){
-    shared_mem_id[i] = shmget(1984+ i,sizeof(int),IPC_CREAT|0640);
-    perror("jeszcze inny komunikat\n");
-    player_connected[i] = shmat(shared_mem_id[i],0,0);
-    perror("jakis komunikat");
+    shared_mem_id[i] = create_shmem_init(i);
+    player_connected[i] = att_shmem(shared_mem_id[i]);
     *player_connected[i] = 0;
 }
 
@@ -30,8 +28,8 @@ while ( *player_connected[0]!=1
 printf("Wszyscy gracze polaczeni\n");
 
 for(int i=0; i<3; i++){
-        shmdt(player_connected[i]);
-        shmctl(shared_mem_id[i],IPC_RMID, 0);
+        detach_shmem(player_connected[i]);
+        delete_shmem_users(shared_mem_id[i]);
     }
 
 return 0;
