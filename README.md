@@ -1,2 +1,2 @@
-# PW_Wargame
-A simple strategy game
+# PW_Gra
+gra stworzona w ramach projektu na PW
