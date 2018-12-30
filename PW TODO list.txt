@@ -1,25 +1,26 @@
 1. utworzyc repozytorium na Githubie --DONE
 
-2. utworzyc pliki serwera i klienta w repozytorium oraz wrappery
+2. utworzyc pliki serwera i klienta w repozytorium --DONE //oraz wrappery
 
-3. utworzenie pamieci wspóldzielonej w pliku serwera, identyfikowanej liczba 9127
-	- tablica 3 intow, zmiana inta o danym indeksie dla kazdego z klientow, start gdy wszyscy polaczeni, o rozmiarze tablicy 3x int 
+3. utworzenie pamieci wspóldzielonej w pliku serwera, identyfikowanej liczba 1984 --DONE
+	- tablica 3 intow, zmiana inta o danym indeksie dla kazdego z klientow, start gdy wszyscy polaczeni, o rozmiarze tablicy 3x int -- DONE
 
-4.dolaczenie klientow do pamieci wspoldzielonej -> wypisac komunikat o polaczeniu klienta w momencie polaczenia, sprawdzanie w serwerze polaczen klientow
-	-string od klienta do serwera
-	-struktura z polami mtype i stringa
-4a.						kermit sewer side
+4.dolaczenie klientow do pamieci wspoldzielonej -> wypisac komunikat o polaczeniu klienta w momencie polaczenia, sprawdzanie w serwerze polaczen klientow --DONE
 
-5. dodanie do wrapperow funkcji, z których korzysta shmem
+4a.						kermit sewer side -- Kermitted
 
-6. commit
+5. dodanie do wrapperow funkcji, z których korzysta shmem -- DONE
 
+6. commit -- Hell yeah done
 
-/*
-4. utworzenie kolejek komunikatów w plikach serwera i klienta
-	- w pliku klienta wywolanego z paremetrem stanowiacym numer jego indeksu, laczymy sie kolejka okreslona kluczowi kolejki+ jego indeksem
-	- w pliku serwera tworze 3 kolejki, kazda tworzona jako (klucz + indeks) danego klienta, tak aby mozliwa byla komunikacja
-	- przechowuj indentyfikatory kolejek klientow w zmiennej tablicowej jednoznacznie ich identyfikujace
-	- dodac definicje p oraz v
-*/
+7. dodac definicje p oraz v bedace wrapperami, osobny plik wrapperowy do nich --DONE
 
+8. dodac liczenie surowcow (jako statycznej wartosci) dla kazdego z graczy, odpowiednio obramowane semaforami
+	- dodac pamiec wspoldzielona, przechowujaca wartosc surowca dla kazdego z graczy osobno, zmieniana co sekunde, ujeta w semafory --DONE
+	- dodac kolejki komunikatow umozliwiajace przesylanie struktur miedzy serwerem a graczem --DONE
+	- utworzenie kolejek komunikatów w plikach serwera i klienta --DONE
+	- w pliku klienta wywolanego z paremetrem stanowiacym numer jego indeksu, laczymy sie kolejka okreslona przez klucz podany z reki (1894 + client_id) -- DONE
+	- w pliku serwera tworze 3 kolejki, kazda tworzona jako (klucz + indeks) danego klienta, tak aby mozliwa byla komunikacja --DONE
+	- przechowuj indentyfikatory kolejek klientow w zmiennej tablicowej jednoznacznie ich identyfikujace-- DONE
+
+9. commit

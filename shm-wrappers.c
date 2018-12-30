@@ -1,13 +1,17 @@
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <signal.h>
+#include <sys/stat.h> 
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/shm.h>
-#include <errno.h>
+#include <sys/sem.h>
+#include "sem-wrappers.h"
+#include "queue-wrappers.h"
 
 int create_shmem_init(int identifier){
     //Wrapper function for initial communication of server and clients
@@ -17,6 +21,16 @@ int create_shmem_init(int identifier){
     }
     return mem_id;
 }
+
+int create_shmem(){
+    //Wrapper function for initial communication of server and clients
+    int mem_id;
+    if((mem_id = shmget(IPC_PRIVATE,sizeof(player),IPC_CREAT|0640))== -1){
+        perror("shm error - initial shmem creation");
+    }
+    return mem_id;
+}
+
 
 void* att_shmem(int mem_id){
     void *adr;

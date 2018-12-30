@@ -6,5 +6,5 @@ int create_shmem_init(int identifier);
 void* att_shmem(int mem_id);
 int detach_shmem(void* memory_adr);
 int delete_shmem_users(int mem_id);
-
+int create_shmem();
 #endif
