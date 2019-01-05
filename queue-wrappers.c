@@ -31,6 +31,15 @@ typedef struct{
     int semaphore;
 }shared_player_data;
 
+typedef struct{
+    char unit_type;
+}train_data;
+
+struct training_buffer{
+    long mtype;
+    train_data msg;
+};
+
 int create_queue(){
     int queue_id;
     if ((queue_id = msgget(IPC_PRIVATE, IPC_CREAT|0640))== -1){
@@ -49,7 +58,7 @@ int create_queue_w_key(key_t key){
 
 int create_queue_init(int identifier){
     int queue_id;
-    if ((queue_id = msgget(1894 + identifier, IPC_CREAT|0640))== -1){
+    if ((queue_id = msgget(1984 + identifier, IPC_CREAT|0640))== -1){
         perror("queue error - creating a player queue");
     }
     return queue_id;
@@ -67,11 +76,37 @@ int send_message(int queue_id, player *msg, long type){
     return message_sent;
 }
 
+int send_message_train(int queue_id, train_data *msg, long type){
+    int message_sent;
+    struct training_buffer tmp;
+    struct training_buffer *buf = &tmp;
+    buf->mtype = type;
+    buf->msg = *msg;
+    if((message_sent = msgsnd(queue_id, buf ,sizeof(train_data),0)) == -1){
+        perror("queue error - sending player");
+    }
+    return message_sent;
+}
+
+
 int receive_message(int queue_id, player *buffer, long type){
     int result;
     struct queue_buffer tmp;
     struct queue_buffer *ptr = &tmp;
     if((result = msgrcv(queue_id, ptr, sizeof(struct queue_buffer), type, IPC_NOWAIT)) == -1){
+        if(errno != ENOMSG){
+            perror("queue error - receiving player" );
+        }
+    }
+    *buffer = ptr->msg;
+    return result;
+}
+
+int receive_message_train(int queue_id, train_data *buffer, long type){
+    int result;
+    struct training_buffer tmp;
+    struct training_buffer *ptr = &tmp;
+    if((result = msgrcv(queue_id, ptr, sizeof(struct training_buffer), type, IPC_NOWAIT)) == -1){
         if(errno != ENOMSG){
             perror("queue error - receiving player" );
         }

@@ -22,6 +22,49 @@
     V_operation(semaphore);
 }
 
+void train_units(char unit, player *player, int resources_sem, int unit_sem){
+    P_operation(resources_sem);
+
+    if(unit == 'w' && player->resources_amount >= 150){
+        player->resources_amount = player->resources_amount - 150;
+        V_operation(resources_sem);
+        sleep(2);
+        P_operation(unit_sem);
+        player->workers = player->workers + 1;
+        V_operation(unit_sem);
+    }
+
+    else if(unit == 'i' && player->resources_amount >= 100){
+        player->resources_amount = player->resources_amount - 100;
+        V_operation(resources_sem);
+        sleep(2);
+        P_operation(unit_sem);
+        player->unit[0] = player->unit[0] + 1;
+        V_operation(unit_sem);
+    }
+
+    else if(unit == 'h' && player->resources_amount >= 350){
+        player->resources_amount = player->resources_amount - 350;
+        V_operation(resources_sem);
+        sleep(3);
+        P_operation(unit_sem);
+        player->unit[1] = player->unit[1] + 1;
+        V_operation(unit_sem);
+    }
+
+    else if(unit == 'c' && player->resources_amount >= 550){
+        player->resources_amount = player->resources_amount - 550;
+        V_operation(resources_sem);
+        sleep(5);
+        P_operation(unit_sem);
+        player->unit[2] = player->unit[2] + 1;
+        V_operation(unit_sem);
+    }
+
+    else V_operation(resources_sem);
+
+}
+
 
 int main() {
     //utworzenie kolejek komunikatow dla kazdego z procesow obslugujacych klienta
@@ -44,7 +87,7 @@ int main() {
 
 
     while ( *player_connected[0]!=1 
-        || *player_connected[1]!=1 || * player_connected[2]!=1 ){
+        || *player_connected[1]!=1 || *player_connected[2]!=1 ){
         sleep(1);
     }
     printf("Wszyscy gracze polaczeni\n");
@@ -56,6 +99,11 @@ int main() {
         shm_players_ids[i]=create_shmem();
         player[i] = att_shmem(shm_players_ids[i]);
         player[i]->player_id = i;
+        player[i]->resources_amount = 250;
+        player[i]->workers = 0;
+        player[i]->unit[0] = 0;
+        player[i]->unit[1] = 0;
+        player[i]->unit[2] = 0;
     }
   
 
@@ -83,7 +131,7 @@ if((check = initialize_semaphore(resources_sem))== 0){
                 while(1){
                     for(int i=0; i<3;i++){
                         update_resources(queue_id[i], player[i], resources_sem);
-                                   }
+                            }
                     sleep(1);
                     
                 }
@@ -94,27 +142,29 @@ if((check = initialize_semaphore(resources_sem))== 0){
     }
 }
 
+//tworzenie jednostek
+int unit_sem = create_semaphore2();
+initialize_semaphore(unit_sem);
+char unit;
+train_data bf;
+train_data *rcv = &bf;
+int rcv_data;
+for(int i=0; i<3; i++){
+    if(client_service_id[i] == 0){
+        while(1){
+            rcv_data = receive_message_train(queue_id[i],rcv,i+4);
+            if(rcv_data != -1){
+                unit = rcv->unit_type;
+                train_units(unit, player[i],resources_sem, unit_sem);
+            }
+        }
+    }
+}
 
-if(client_service_id[0] == 0){
-    while(1){
-        sleep(10);
-    }
-}
-if(client_service_id[1] == 0){
-    while(1){
-        sleep(10);
-    }
-}
-if(client_service_id[2] == 0){
-    while(1){
-        sleep(10);
-    }
-}
 
 remove_semaphore(resources_sem);
+remove_semaphore(unit_sem);
 
-
-//do utworzenia petla wysylanie procesom klientow wiadomosci o surowcach
 for(int i=0; i<3; i++){
         detach_shmem(player_connected[i]);
         delete_shmem_users(shared_mem_id[i]);
