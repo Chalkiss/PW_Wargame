@@ -43,7 +43,7 @@ int main(int argc, char* argv[]){
     mvprintw(12,5,"Infantry: ");
     mvprintw(15,5,"Heavy Infantry: ");
     mvprintw(18,5,"Cavalry: ");
-    mvprintw(4,55,"Who to attack?");
+    mvprintw(4,55,"Whom to attack?");
     mvprintw(13,55,"Victories: ");
     timeout(0);
     noecho();
@@ -55,12 +55,12 @@ int main(int argc, char* argv[]){
     while(1){
         msg_received = receive_message(queue_id, rec, client_id+1);
         if(msg_received != -1){
-                mvprintw(5, 8,"%d", rec->resources_amount);
-                mvprintw(10, 8,"%d", rec->workers);
-                mvprintw(13, 9,"%d", rec->unit[0]);
-                mvprintw(16, 11,"%d", rec->unit[1]);
-                mvprintw(19, 8,"%d", rec->unit[2]);
-                mvprintw(14, 59,"%d", rec->victories);
+                mvprintw(5, 5,"%d", rec->resources_amount);
+                mvprintw(10, 5,"%d", rec->workers);
+                mvprintw(13, 5,"%d", rec->unit[0]);
+                mvprintw(16, 5,"%d", rec->unit[1]);
+                mvprintw(19, 5,"%d", rec->unit[2]);
+                mvprintw(14, 55,"%d", rec->victories);
                 refresh();
             }
             unit_type = getch();

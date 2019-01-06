@@ -21,7 +21,7 @@
     send_message(client_queue_id, player, player->player_id+1);
     V_operation(semaphore);
 }
-
+/*
 void train_units(char unit, player *player, int resources_sem, int unit_sem){
     P_operation(resources_sem);
 
@@ -64,6 +64,89 @@ void train_units(char unit, player *player, int resources_sem, int unit_sem){
     else V_operation(resources_sem);
 
 }
+*/
+
+void pay_units(char unit, player *player, int resources_sem){
+    P_operation(resources_sem);
+    switch(unit)
+    {
+        case 'w':
+            if(player -> resources_amount >= 150){
+                player -> resources_amount -= 150;
+                V_operation(resources_sem);
+            }else{
+                unit = 'e'; //unit error type, nie trenuj jednostek
+                V_operation(resources_sem);
+            }
+            break;
+
+        case 'i':
+            if(player -> resources_amount >= 100){
+                player -> resources_amount -= 100;
+                V_operation(resources_sem);
+            }else{
+                unit = 'e'; //unit error type, nie trenuj jednostek
+                V_operation(resources_sem);
+            }
+            break;
+            
+        case 'h':
+            if(player -> resources_amount >= 350){
+                player -> resources_amount -= 350;
+                V_operation(resources_sem);
+            }else{
+                unit = 'e'; //unit error type, nie trenuj jednostek
+                V_operation(resources_sem);
+            }            break;
+
+        case 'c':
+            if(player -> resources_amount >= 550){
+                player -> resources_amount -= 550;
+                V_operation(resources_sem);                
+            }else{
+                unit = 'e'; //unit error type, nie trenuj jednostek
+                V_operation(resources_sem);
+            }
+            break;
+
+    }
+
+}
+
+void train_unit(char unit, player *player, int unit_sem){
+    switch(unit)
+    {
+
+        case 'w':
+            printf("Jestem w train_unit switchu\n");
+            sleep(2);
+            P_operation(unit_sem);
+            player->workers++;
+            V_operation(unit_sem);
+            break;
+
+        case 'i':
+            sleep(2);
+            P_operation(unit_sem);
+            player->unit[0]++;
+            V_operation(unit_sem);            
+            break;
+        
+        case 'h':
+            sleep(3);
+            P_operation(unit_sem);
+            player->unit[1]++;
+            V_operation(unit_sem);
+            break;
+
+        case 'c':
+            sleep(5);
+            P_operation(unit_sem);
+            player->unit[2]++;
+            V_operation(unit_sem);
+            break;
+    }
+};
 
 
 int main() {
@@ -131,7 +214,7 @@ if((check = initialize_semaphore(resources_sem))== 0){
                 while(1){
                     for(int i=0; i<3;i++){
                         update_resources(queue_id[i], player[i], resources_sem);
-                            }
+                        }
                     sleep(1);
                     
                 }
@@ -143,27 +226,53 @@ if((check = initialize_semaphore(resources_sem))== 0){
 }
 
 //tworzenie jednostek
-int unit_sem = create_semaphore2();
-initialize_semaphore(unit_sem);
+int training_process_id;
 char unit;
 train_data bf;
 train_data *rcv = &bf;
 int rcv_data;
+
 for(int i=0; i<3; i++){
     if(client_service_id[i] == 0){
-        while(1){
-            rcv_data = receive_message_train(queue_id[i],rcv,i+4);
-            if(rcv_data != -1){
-                unit = rcv->unit_type;
-                train_units(unit, player[i],resources_sem, unit_sem);
+        training_process_id = fork();
+        if(training_process_id != 0){
+            train_data buf;
+            train_data *msg = &buf;
+            while(1){
+                rcv_data = receive_message_train(queue_id[i], rcv, i+4);
+                if(rcv_data != -1){
+                    unit = rcv -> unit_type;
+                    pay_units(unit, player[i], resources_sem);
+                    if(unit != 'e'){
+                        msg->unit_type = unit;
+                        send_message_train(queue_id[i], msg, i+7);
+                    }
+                }
+            }
+
+        }
+        
+        else{
+            int unit_sem = create_semaphore2();
+            initialize_semaphore(unit_sem);
+            int enq_unit;
+            train_data buf;
+            train_data *msg = &buf;
+            char unit;
+            while(1){
+                enq_unit = receive_message_train(queue_id[i],msg,i+7);
+                if(enq_unit != -1){
+                    unit = msg -> unit_type;
+                    train_unit(unit, player[i], unit_sem);
+
+                }
             }
         }
     }
 }
 
-
 remove_semaphore(resources_sem);
-remove_semaphore(unit_sem);
+
 
 for(int i=0; i<3; i++){
         detach_shmem(player_connected[i]);

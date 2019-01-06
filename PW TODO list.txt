@@ -2,14 +2,14 @@
 
 2. utworzyc pliki serwera i klienta w repozytorium --DONE //oraz wrappery
 
-3. utworzenie pamieci wsp�ldzielonej w pliku serwera, identyfikowanej liczba 1984 --DONE
+3. utworzenie pamieci wspóldzielonej w pliku serwera, identyfikowanej liczba 1984 --DONE
 	- tablica 3 intow, zmiana inta o danym indeksie dla kazdego z klientow, start gdy wszyscy polaczeni, o rozmiarze tablicy 3x int -- DONE
 
 4.dolaczenie klientow do pamieci wspoldzielonej -> wypisac komunikat o polaczeniu klienta w momencie polaczenia, sprawdzanie w serwerze polaczen klientow --DONE
 
 4a.						kermit sewer side -- Kermitted
 
-5. dodanie do wrapperow funkcji, z kt�rych korzysta shmem -- DONE
+5. dodanie do wrapperow funkcji, z których korzysta shmem -- DONE
 
 6. commit -- Hell yeah done
 
@@ -18,9 +18,27 @@
 8. dodac liczenie surowcow (jako statycznej wartosci) dla kazdego z graczy, odpowiednio obramowane semaforami
 	- dodac pamiec wspoldzielona, przechowujaca wartosc surowca dla kazdego z graczy osobno, zmieniana co sekunde, ujeta w semafory --DONE
 	- dodac kolejki komunikatow umozliwiajace przesylanie struktur miedzy serwerem a graczem --DONE
-	- utworzenie kolejek komunikat�w w plikach serwera i klienta --DONE
+	- utworzenie kolejek komunikatów w plikach serwera i klienta --DONE
 	- w pliku klienta wywolanego z paremetrem stanowiacym numer jego indeksu, laczymy sie kolejka okreslona przez klucz podany z reki (1894 + client_id) -- DONE
 	- w pliku serwera tworze 3 kolejki, kazda tworzona jako (klucz + indeks) danego klienta, tak aby mozliwa byla komunikacja --DONE
 	- przechowuj indentyfikatory kolejek klientow w zmiennej tablicowej jednoznacznie ich identyfikujace-- DONE
 
 9. commit
+
+10. poprawne tworzenie jednostek -- DONE
+
+11. commit --DONE
+
+12. stworzenie logiki ataków
+	- wyświetlaj w każdym kliencie, kogo może zaatakować (wszyscy poza nim samym)
+	- dokonaj wyboru jednostek w formacie infantry -> heavy infantry -> cavalry, podając kolejne liczby, zatwierdzając spacją
+	- klient wysyła message w kolejce komunikatów, trzymający structa z informacjami : kto atakuje, kogo atakuje, ilość jednostek ataku, czy sukces ataku
+	- serwer odbiera informację o ataku, następnie kolejno:
+		a. usuwa wskazaną ilość jednostek gracza atakującego (po opuszczeniu semaforów)
+		b. wysyła dane do oddzielnego podprocesu
+		c. proces czeka 5 sekund
+		d. opuszczany jest semafor under_attack u gracza broniącego
+		e. wykonywane są obliczenia dotyczące ataku, straty dla stron, flaga zwysciestwa jest ustalana
+		f.jedostki broniącego są modyfikowane (pod semaforami), jednostki atakującego wracają jeśli wygrał i są dodawane do jego jednostek.
+
+ 
