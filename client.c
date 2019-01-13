@@ -35,7 +35,7 @@ int main(int argc, char* argv[]){
     int attack_memory_id = create_shmem_atk(client_id);
 
     int queue_id = create_queue_init(client_id);
-    int msg_received,msg_received_end;
+    int msg_received,msg_received_end, msg_received_marked;
 
     char unit_type = 'z';
     char other_button = '/';
@@ -73,6 +73,9 @@ int main(int argc, char* argv[]){
     button_data *snd = &trbuf;
 
     char atk1, atk2;
+
+    attack_data bum;
+    attack_data *atk_back = &bum;
 
         switch(client_id){
     case 0:
@@ -119,7 +122,7 @@ int main(int argc, char* argv[]){
         signal(SIGINT, cleanup);
         msg_received = receive_message(queue_id, rec, client_id+1);
         msg_received_end = receive_message_int(queue_id, end,200+client_id);
-        
+        msg_received_marked = receive_message_attack(queue_id,atk_back,client_id+16);
         if(msg_received != -1){
                 mvprintw(5, 5,"%d", rec->resources_amount);
                 mvprintw(10, 5,"%d", rec->workers);
@@ -131,6 +134,10 @@ int main(int argc, char* argv[]){
             }
         else if(msg_received_end != -1){
            cleanup();
+        }else if(msg_received_marked != -1){
+            mvprintw(14,41,"%d       ",atk_back->unit[0]);
+            mvprintw(15,47,"%d       ",atk_back->unit[1]);
+            mvprintw(16,40,"%d       ",atk_back->unit[2]);
         }
         unit_type = getch();
         other_button = unit_type;                    

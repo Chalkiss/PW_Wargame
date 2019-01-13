@@ -100,7 +100,47 @@ void train_unit(char unit, player *player, int unit_sem){
             V_operation(unit_sem);
             break;
     }
-};
+}
+
+void mark_attack(char command, player *player, attack_data *atkb, int unit_sem){
+    switch(command){
+        case 'v':
+        if(player->unit[0] >0){
+            P_operation(unit_sem);
+            player->unit[0]--;
+            atkb ->unit[0]++;
+            V_operation(unit_sem);
+            break;
+        }
+        else{
+            break;
+        }
+        case 'b':
+        if(player->unit[1] >0){
+            P_operation(unit_sem);
+            player->unit[1]--;
+            atkb ->unit[1]++;
+            V_operation(unit_sem);
+            break;
+        }
+        else{
+            break;
+        }    
+        case 'n':
+        if(player->unit[2] >0){
+            P_operation(unit_sem);
+            player->unit[2]--;
+            atkb ->unit[2]++;
+            V_operation(unit_sem);
+            break;
+        }
+        else{
+            break;
+        }
+        
+    }
+}
+
 
 server_ready bufr;
 server_ready *sr = &bufr;
@@ -230,7 +270,7 @@ button_data *rcv = &bf;
 int rcv_data;
 int rcv_data_atk_who;
 int rcv_data_atk_unit;
-
+int atker, dfnder;
 for(int i=0; i<3; i++){
     if(client_service_id[i] == 0){
         training_process_id = fork();
@@ -251,14 +291,17 @@ for(int i=0; i<3; i++){
                 }
                 else if(rcv_data_atk_who != -1 && semaphore_state(atk_sem[i]) == 1){
                     printf("%d atakuje %d, jednostki %d %d %d\n", atk[i]->attacker_id,atk[i]->defender_id, atk[i]->unit[0],atk[i]->unit[1],atk[i]->unit[2]);
+                    atker = atk[i]->attacker_id;
+                    dfnder = atk[i]->defender_id;
                     P_operation(atk_sem[i]);
                 }
                 else if(rcv_data_atk_unit != -1 && semaphore_state(atk_sem[i]) == 0){
                     fight = rcv->unit_type;
-                    printf("gracz %d kazał przesłać do ataku %c\n", i, fight );
+                    atk[i]->attacker_id = atker;
+                    atk[i] -> defender_id = dfnder;
+                    mark_attack(fight, player[i],atk[i],unit_sem[i]);
+                    send_message_attack(queue_id[i],atk[i],i+16); 
                 }
-
-
             }
 
         }
