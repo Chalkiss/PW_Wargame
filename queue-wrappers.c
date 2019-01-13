@@ -33,7 +33,7 @@ typedef struct{
 
 typedef struct{
     char unit_type;
-}train_data;
+}button_data;
 
 typedef struct server_ready{
     int value;
@@ -41,7 +41,7 @@ typedef struct server_ready{
 
 struct training_buffer{
     long mtype;
-    train_data msg;
+    button_data msg;
 };
 
 struct int_buffer{
@@ -49,7 +49,16 @@ struct int_buffer{
     server_ready value;
 };
 
+typedef struct {
+    int attacker_id;
+    int defender_id;
+    int unit[3];
+}attack_data;
 
+struct attacking_buffer {
+    long mtype;
+    attack_data msg;
+};
 
 int create_queue(){
     int queue_id;
@@ -69,7 +78,7 @@ int create_queue_w_key(key_t key){
 
 int create_queue_init(int identifier){
     int queue_id;
-    if ((queue_id = msgget(1984 + identifier, IPC_CREAT|0640))== -1){
+    if ((queue_id = msgget(1894 + identifier, IPC_CREAT|0640))== -1){
         perror("queue error - creating a player queue");
     }
     return queue_id;
@@ -87,13 +96,13 @@ int send_message(int queue_id, player *msg, long type){
     return message_sent;
 }
 
-int send_message_train(int queue_id, train_data *msg, long type){
+int send_message_button(int queue_id, button_data *msg, long type){
     int message_sent;
     struct training_buffer tmp;
     struct training_buffer *buf = &tmp;
     buf->mtype = type;
     buf->msg = *msg;
-    if((message_sent = msgsnd(queue_id, buf ,sizeof(train_data),0)) == -1){
+    if((message_sent = msgsnd(queue_id, buf ,sizeof(button_data),0)) == -1){
         perror("queue error - sending player");
     }
     return message_sent;
@@ -111,7 +120,17 @@ int send_message_int(int queue_id, server_ready *msg, long type){
     return message_sent;
 }
 
-
+int send_message_attack(int queue_id, attack_data *msg, long type){
+    int message_sent;
+    struct attacking_buffer tmp;
+    struct attacking_buffer *buf = &tmp;
+    buf->mtype = type;
+    buf->msg = *msg;
+    if((message_sent = msgsnd(queue_id, buf ,sizeof(attack_data),0)) == -1){
+        perror("queue error - sending attack data");
+    }
+    return message_sent;
+}
 
 int receive_message(int queue_id, player *buffer, long type){
     int result;
@@ -126,7 +145,7 @@ int receive_message(int queue_id, player *buffer, long type){
     return result;
 }
 
-int receive_message_train(int queue_id, train_data *buffer, long type){
+int receive_message_button(int queue_id, button_data *buffer, long type){
     int result;
     struct training_buffer tmp;
     struct training_buffer *ptr = &tmp;
@@ -149,6 +168,20 @@ int receive_message_int(int queue_id, server_ready *buffer, long type){
         }
     }
     *buffer = ptr->value;
+    return result;
+}
+
+int receive_message_attack(int queue_id, attack_data *buffer, long type){
+    int result;
+    struct attacking_buffer tmp;
+    struct attacking_buffer *ptr = &tmp;
+    if((result = msgrcv(queue_id, ptr, sizeof(struct attacking_buffer), type, IPC_NOWAIT)) == -1){
+        if(errno != ENOMSG){
+            perror("queue error - receiving attack data" );
+        }
+    }
+    *buffer = ptr->msg;
+
     return result;
 }
 

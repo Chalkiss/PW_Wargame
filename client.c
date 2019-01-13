@@ -16,12 +16,14 @@
 #include <ncurses.h>
 
 int *player_connected;
-
+int *atk_shm;
 void cleanup(){
     detach_shmem(player_connected);
-    printf("Odlaczono od pamiecie wspoldzielonej\n");
+    detach_shmem(atk_shm);
+    printf("Odlaczono od pamieci wspoldzielonych\n");
     clear();
     echo();
+    refresh();
     exit(1);
 }
 
@@ -30,15 +32,20 @@ int main(int argc, char* argv[]){
     int client_id = atoi(argv[1]);
 
     int shared_memory_id = create_shmem_init(client_id);
+    int attack_memory_id = create_shmem_atk(client_id);
 
     int queue_id = create_queue_init(client_id);
     int msg_received,msg_received_end;
 
-    char unit_type = '0';
+    char unit_type = 'z';
+    char other_button = '/';
 
     player buf;
     player *rec = &buf;
 
+
+
+    atk_shm = att_shmem(attack_memory_id);
     player_connected = att_shmem(shared_memory_id);
     int server_on =-4;
 
@@ -50,12 +57,20 @@ int main(int argc, char* argv[]){
     *player_connected = 1;
     signal(SIGINT, cleanup);
     }
-    
+
+    attack_data bfr;
+    attack_data *atk = &bfr;
+    atk ->attacker_id = -3;
+    atk ->defender_id = -3;
+    atk ->unit[0] = 0;
+    atk ->unit[1] = 0;
+    atk ->unit[2] = 0;
+
     server_ready bufr;
     server_ready *end = &bufr;
 
-    train_data trbuf;
-    train_data *snd = &trbuf;
+    button_data trbuf;
+    button_data *snd = &trbuf;
 
     char atk1, atk2;
 
@@ -92,6 +107,7 @@ int main(int argc, char* argv[]){
     mvprintw(14,30, "Infantry:");
     mvprintw(15,30, "Heavy Infantry:");
     mvprintw(16,30, "Cavalry:");
+    mvprintw(0,0,"%d atakuje %d, jednostki %d %d %d\n", atk->attacker_id,atk->defender_id, atk->unit[0],atk->unit[1],atk->unit[2]);
     timeout(0);
     noecho();
 
@@ -103,6 +119,7 @@ int main(int argc, char* argv[]){
         signal(SIGINT, cleanup);
         msg_received = receive_message(queue_id, rec, client_id+1);
         msg_received_end = receive_message_int(queue_id, end,200+client_id);
+        
         if(msg_received != -1){
                 mvprintw(5, 5,"%d", rec->resources_amount);
                 mvprintw(10, 5,"%d", rec->workers);
@@ -112,17 +129,25 @@ int main(int argc, char* argv[]){
                 mvprintw(14, 55,"%d", rec->victories);
                 refresh();
             }
-       else if(msg_received_end != -1){
+        else if(msg_received_end != -1){
            cleanup();
-       }
-
-        
-            unit_type = getch();
-            if(unit_type == 'w' || unit_type ==  'i' || unit_type == 'h' || unit_type == 'c'){
+        }
+        unit_type = getch();
+        other_button = unit_type;                    
+        if(unit_type == 'q' || unit_type ==  'w' || unit_type == 'e' || unit_type == 'r'){
                 snd->unit_type = unit_type;
-            send_message_train(queue_id, snd, client_id+4);
+            send_message_button(queue_id, snd, client_id+4);
             refresh();
             }
+        else if(other_button == atk1 || other_button == atk2){
+            atk->attacker_id = client_id;
+            atk->defender_id = atoi(&other_button);
+            send_message_attack(queue_id, atk, client_id+10);
+        }
+        else if(other_button == 'v'|| other_button == 'b'|| other_button == 'n'){
+            snd->unit_type = other_button;
+            send_message_button(queue_id, snd, client_id+13);
+        }        
     }
     return 0;
 }

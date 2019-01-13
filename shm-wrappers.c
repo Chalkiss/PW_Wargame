@@ -31,6 +31,15 @@ int create_shmem(){
     return mem_id;
 }
 
+int create_shmem_atk(int identifier){
+    //Wrapper function for initial communication of server and clients
+    int mem_id;
+    if((mem_id = shmget(ftok("./server",identifier),sizeof(attack_data),IPC_CREAT|0640))== -1){
+        perror("shm error - initial shmem creation");
+    }
+    return mem_id;
+}
+
 
 void* att_shmem(int mem_id){
     void *adr;

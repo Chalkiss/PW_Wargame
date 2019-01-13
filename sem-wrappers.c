@@ -54,6 +54,14 @@ int remove_semaphore(int semid){
     return state;
 }
 
+int semaphore_state(int semid){
+    int state;
+    if((state = semctl(semid, 0, GETVAL, NULL))== -1){
+        perror("sem error - checking sem value");
+    }
+    return state;
+}
+
 //Wrapper for setting semaphore down
 int P_operation(int semid){
     int state;

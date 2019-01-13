@@ -25,41 +25,41 @@ void pay_units(char unit, player *player, int resources_sem){
     P_operation(resources_sem);
     switch(unit)
     {
-        case 'w':
+        case 'q':
             if(player -> resources_amount >= 150){
                 player -> resources_amount -= 150;
                 V_operation(resources_sem);
             }else{
-                unit = 'e'; //unit error type, nie trenuj jednostek
+                unit = ']'; //unit error type, nie trenuj jednostek
                 V_operation(resources_sem);
             }
             break;
 
-        case 'i':
+        case 'w':
             if(player -> resources_amount >= 100){
                 player -> resources_amount -= 100;
                 V_operation(resources_sem);
             }else{
-                unit = 'e'; //unit error type, nie trenuj jednostek
+                unit = ']'; //unit error type, nie trenuj jednostek
                 V_operation(resources_sem);
             }
             break;
             
-        case 'h':
+        case 'e':
             if(player -> resources_amount >= 350){
                 player -> resources_amount -= 350;
                 V_operation(resources_sem);
             }else{
-                unit = 'e'; //unit error type, nie trenuj jednostek
+                unit = ']'; //unit error type, nie trenuj jednostek
                 V_operation(resources_sem);
             }            break;
 
-        case 'c':
+        case 'r':
             if(player -> resources_amount >= 550){
                 player -> resources_amount -= 550;
                 V_operation(resources_sem);                
             }else{
-                unit = 'e'; //unit error type, nie trenuj jednostek
+                unit = ']'; //unit error type, nie trenuj jednostek
                 V_operation(resources_sem);
             }
             break;
@@ -72,29 +72,28 @@ void train_unit(char unit, player *player, int unit_sem){
     switch(unit)
     {
 
-        case 'w':
-            printf("Jestem w train_unit switchu\n");
+        case 'q':
             sleep(2);
             P_operation(unit_sem);
             player->workers++;
             V_operation(unit_sem);
             break;
 
-        case 'i':
+        case 'w':
             sleep(2);
             P_operation(unit_sem);
             player->unit[0]++;
             V_operation(unit_sem);            
             break;
         
-        case 'h':
+        case 'e':
             sleep(3);
             P_operation(unit_sem);
             player->unit[1]++;
             V_operation(unit_sem);
             break;
 
-        case 'c':
+        case 'r':
             sleep(5);
             P_operation(unit_sem);
             player->unit[2]++;
@@ -112,36 +111,35 @@ int queue_id[3];
 int unit_sem[3];
 int shm_players_ids[3];
 player *detach_player[3];
+attack_data *detach_atk[3];
+int shm_atk_id[3];
+int atk_sem[3];
+
 void cleanup (){
     sr->value = 1;
     for(int i=0; i<3; i++){
         detach_shmem(player_connected[i]);
         detach_shmem(detach_player[i]);
+        detach_shmem(detach_atk[i]);
         send_message_int(queue_id[i], sr, 200+i);
         delete_shmem_users(shared_mem_id[i]);
         delete_shmem_users(shm_players_ids[i]);
+        delete_shmem_users(shm_atk_id[i]);
     }
     sleep(1);
     for(int i=0; i<3;i++){
         remove_queue(queue_id[i]);
-        printf("removing unit sem...\n");
         remove_semaphore(unit_sem[i]);
+        remove_semaphore(atk_sem[i]);
     }
     remove_semaphore(resources_sem);
     exit(1);
 }
 
 int main() {
-    //utworzenie kolejek komunikatow dla kazdego z procesow obslugujacych klienta
-
-
-
 
     //inicjalizacja pamieci wspoldzielonej, inicjalizacja zmiennych polaczenia klientow zerami
- 
-
-    for(int i=0; i<3; i++){
-        
+    for(int i=0; i<3; i++){        
         shared_mem_id[i] = create_shmem_init(i);
         player_connected[i] = att_shmem(shared_mem_id[i]);
         *player_connected[i] = 0;
@@ -164,18 +162,28 @@ server_ready *srv = &buffer;
   
 
     player *player[3];
-
+    attack_data *atk[3];
     for(int i =0; i<3; i++){
+        shm_atk_id[i] = create_shmem_atk(i);
+
         shm_players_ids[i]=create_shmem();
         detach_player[i] = player[i] = att_shmem(shm_players_ids[i]);
+        detach_atk[i] = atk[i] = att_shmem(shm_atk_id[i]);
         player[i]->player_id = i;
         player[i]->resources_amount = 250;
         player[i]->workers = 0;
         player[i]->unit[0] = 0;
         player[i]->unit[1] = 0;
         player[i]->unit[2] = 0;
+        atk[i] ->attacker_id = -3;
+        atk[i] ->defender_id = -3;
+        atk[i] ->unit[0] = 0;
+        atk[i] ->unit[1] = 0;
+        atk[i] ->unit[2] = 0;
         unit_sem[i] = create_semaphore2();
         initialize_semaphore(unit_sem[i]);
+        atk_sem[i] = create_semaphore2();
+        initialize_semaphore(atk_sem[i]);
     }
   
 
@@ -185,9 +193,6 @@ server_ready *srv = &buffer;
 int client_service_id[3];
 //inicjalizacja client_service_id
 
-for (int i=0; i<3; i++){
-    client_service_id[i] = -5;
-}
 
 
 
@@ -207,8 +212,7 @@ if((check = initialize_semaphore(resources_sem))== 0){
                         update_resources(queue_id[i], player[i], resources_sem);
                         }
                     sleep(1);
-                    signal(SIGINT, cleanup);
-                    
+                    signal(SIGINT, cleanup);                    
                 }
             }
 
@@ -220,37 +224,52 @@ if((check = initialize_semaphore(resources_sem))== 0){
 //tworzenie jednostek
 int training_process_id;
 char unit;
-train_data bf;
-train_data *rcv = &bf;
+char fight;
+button_data bf;
+button_data *rcv = &bf;
 int rcv_data;
+int rcv_data_atk_who;
+int rcv_data_atk_unit;
 
 for(int i=0; i<3; i++){
     if(client_service_id[i] == 0){
         training_process_id = fork();
         if(training_process_id != 0){
-            train_data buf;
-            train_data *msg = &buf;
+            button_data buf;
+            button_data *msg = &buf;
             while(1){
-                rcv_data = receive_message_train(queue_id[i], rcv, i+4);
-                if(rcv_data != -1){
+                rcv_data = receive_message_button(queue_id[i], rcv, i+4);
+                rcv_data_atk_who = receive_message_attack(queue_id[i],atk[i],i+10);
+                rcv_data_atk_unit = receive_message_button(queue_id[i],rcv,i+13);
+                if(rcv_data != -1 && semaphore_state(atk_sem[i]) == 1){
                     unit = rcv -> unit_type;
                     pay_units(unit, player[i], resources_sem);
-                    if(unit != 'e'){
+                    if(unit != ']'){
                         msg->unit_type = unit;
-                        send_message_train(queue_id[i], msg, i+7);
+                        send_message_button(queue_id[i], msg, i+7);
                     }
                 }
+                else if(rcv_data_atk_who != -1 && semaphore_state(atk_sem[i]) == 1){
+                    printf("%d atakuje %d, jednostki %d %d %d\n", atk[i]->attacker_id,atk[i]->defender_id, atk[i]->unit[0],atk[i]->unit[1],atk[i]->unit[2]);
+                    P_operation(atk_sem[i]);
+                }
+                else if(rcv_data_atk_unit != -1 && semaphore_state(atk_sem[i]) == 0){
+                    fight = rcv->unit_type;
+                    printf("gracz %d kazał przesłać do ataku %c\n", i, fight );
+                }
+
+
             }
 
         }
         
         else{
             int enq_unit;
-            train_data buf;
-            train_data *msg = &buf;
+            button_data buf;
+            button_data *msg = &buf;
             char unit;
             while(1){
-                enq_unit = receive_message_train(queue_id[i],msg,i+7);
+                enq_unit = receive_message_button(queue_id[i],msg,i+7);
                 if(enq_unit != -1){
                     unit = msg -> unit_type;
                     train_unit(unit, player[i], unit_sem[i]);
@@ -261,13 +280,6 @@ for(int i=0; i<3; i++){
     }
 }
 
-remove_semaphore(resources_sem);
-
-
-for(int i=0; i<3; i++){
-        detach_shmem(player_connected[i]);
-        delete_shmem_users(shared_mem_id[i]);
-    }
 
 return 0;
 }
