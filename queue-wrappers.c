@@ -35,10 +35,21 @@ typedef struct{
     char unit_type;
 }train_data;
 
+typedef struct server_ready{
+    int value;
+}server_ready;
+
 struct training_buffer{
     long mtype;
     train_data msg;
 };
+
+struct int_buffer{
+    long mtype;
+    server_ready value;
+};
+
+
 
 int create_queue(){
     int queue_id;
@@ -88,6 +99,19 @@ int send_message_train(int queue_id, train_data *msg, long type){
     return message_sent;
 }
 
+int send_message_int(int queue_id, server_ready *msg, long type){
+    int message_sent;
+    struct int_buffer tmp;
+    struct int_buffer *buf = &tmp;
+    buf->mtype = type;
+    buf->value = *msg;
+    if((message_sent = msgsnd(queue_id, buf ,sizeof(server_ready),0)) == -1){
+        perror("queue error - sending player");
+    }
+    return message_sent;
+}
+
+
 
 int receive_message(int queue_id, player *buffer, long type){
     int result;
@@ -114,6 +138,20 @@ int receive_message_train(int queue_id, train_data *buffer, long type){
     *buffer = ptr->msg;
     return result;
 }
+
+int receive_message_int(int queue_id, server_ready *buffer, long type){
+    int result;
+    struct int_buffer tmp;
+    struct int_buffer *ptr = &tmp;
+    if((result = msgrcv(queue_id, ptr, sizeof(struct int_buffer), type, IPC_NOWAIT)) == -1){
+        if(errno != ENOMSG){
+            perror("queue error - receiving player" );
+        }
+    }
+    *buffer = ptr->value;
+    return result;
+}
+
 
 int remove_queue(int queue_id){
     int result;
