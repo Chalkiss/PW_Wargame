@@ -105,7 +105,7 @@ void train_unit(char unit, player *player, int unit_sem){
 void mark_attack(char command, player *player, attack_data *atkb, int unit_sem){
     switch(command){
         case 'v':
-        if(player->unit[0] >0){
+        if(player->unit[0] > 0){
             P_operation(unit_sem);
             player->unit[0]--;
             atkb ->unit[0]++;
@@ -116,7 +116,7 @@ void mark_attack(char command, player *player, attack_data *atkb, int unit_sem){
             break;
         }
         case 'b':
-        if(player->unit[1] >0){
+        if(player->unit[1] > 0){
             P_operation(unit_sem);
             player->unit[1]--;
             atkb ->unit[1]++;
@@ -127,7 +127,7 @@ void mark_attack(char command, player *player, attack_data *atkb, int unit_sem){
             break;
         }    
         case 'n':
-        if(player->unit[2] >0){
+        if(player->unit[2] > 0){
             P_operation(unit_sem);
             player->unit[2]--;
             atkb ->unit[2]++;
@@ -140,6 +140,68 @@ void mark_attack(char command, player *player, attack_data *atkb, int unit_sem){
         
     }
 }
+
+
+int ceiling(double var){
+    int value;
+    if(var - (int)var >0){
+        value = (int)var +1;
+    }else{
+        value = (int)var;
+    }
+    return value;
+}
+
+double attack_strength(attack_data *atk){
+double attack_power = atk->unit[0]*1.0 + atk->unit[1]*1.5 +atk->unit[2]*3.5;
+return attack_power;
+}
+
+double defense_strength(player *player){
+double defense_power = player->unit[0]*1.0 + player->unit[1]*1.5 +player->unit[2]*3.5;
+return defense_power;
+}
+
+void recount_units(player *player, attack_data *atk, int unit_sem){
+    int soldiers_left_param;
+    int soldiers_left_param2;
+    double attack_power;
+    double defense_power;
+    attack_power = attack_strength(atk);
+    printf("Siła ataku to: %f\n",attack_power);
+    P_operation(unit_sem);
+    defense_power = defense_strength(player);
+    V_operation(unit_sem);
+    printf("Siła obrony to: %f\n",defense_power);
+    if(defense_power < 1.0){
+        defense_power = 1.0;
+    }
+    if(attack_power - defense_power > 0){
+        soldiers_left_param = attack_power/defense_power;
+        P_operation(unit_sem);
+        for(int i=0; i<3; i++){
+            player->unit[i] = 0;
+            atk->unit[i] -= ceiling(atk->unit[i] * soldiers_left_param);
+        }
+        V_operation(unit_sem);
+    }else{
+        soldiers_left_param = attack_power/defense_power;
+        P_operation(unit_sem);
+        for(int i=0;i<3;i++){
+            player->unit[i] -= ceiling(player->unit[i]*soldiers_left_param);
+        }
+        V_operation(unit_sem);
+        if(attack_power < 1.0){
+            attack_power = 1.0;
+        }
+        soldiers_left_param2 = defense_power/attack_power;
+        for(int i=0;i<3;i++){
+            atk -> unit[i] -= ceiling(atk->unit[i]*soldiers_left_param2); 
+        }
+    }
+
+}
+
 
 
 server_ready bufr;
@@ -270,10 +332,17 @@ button_data *rcv = &bf;
 int rcv_data;
 int rcv_data_atk_who;
 int rcv_data_atk_unit;
+int rcv_data_send_atk;
 int atker, dfnder;
+int units[3];
+int parent;
+int training_ppid;
 for(int i=0; i<3; i++){
     if(client_service_id[i] == 0){
         training_process_id = fork();
+        if (training_process_id==0){
+            training_ppid = getppid();
+        }
         if(training_process_id != 0){
             button_data buf;
             button_data *msg = &buf;
@@ -281,6 +350,7 @@ for(int i=0; i<3; i++){
                 rcv_data = receive_message_button(queue_id[i], rcv, i+4);
                 rcv_data_atk_who = receive_message_attack(queue_id[i],atk[i],i+10);
                 rcv_data_atk_unit = receive_message_button(queue_id[i],rcv,i+13);
+                rcv_data_send_atk = receive_message_button(queue_id[i],rcv,i+19);
                 if(rcv_data != -1 && semaphore_state(atk_sem[i]) == 1){
                     unit = rcv -> unit_type;
                     pay_units(unit, player[i], resources_sem);
@@ -300,13 +370,40 @@ for(int i=0; i<3; i++){
                     atk[i]->attacker_id = atker;
                     atk[i] -> defender_id = dfnder;
                     mark_attack(fight, player[i],atk[i],unit_sem[i]);
+                    for(int j=0; j<3;j++){
+                        units[j] = atk[i]->unit[j];
+                    }
                     send_message_attack(queue_id[i],atk[i],i+16); 
+                }
+                else if(rcv_data_send_atk != -1 && semaphore_state(atk_sem[i]) == 0){
+                    atk[i] -> attacker_id = atker;
+                    atk[i] -> defender_id = dfnder;
+                    for(int j=0; j<3;j++){
+                        atk[i]->unit[j] = units[j];
+                    }
+                    parent = fork();
+                    if(parent !=0){
+                        recount_units(player[dfnder],atk[i],unit_sem[i]);
+                        send_message_attack(queue_id[i], atk[i],i+22);
+                      /*  if(victory == 1){
+                            send_message_int(queue_id[i],vic,i+25);
+                        }*/
+                        dfnder = -3;
+                        atker = -3;
+                        for(int j=0; j<3;j++){
+                            units[j] = 0;
+                        }
+                        V_operation(atk_sem[i]);
+                    }
+                    else{
+                        break;
+                    }
                 }
             }
 
         }
         
-        else{
+        else if (training_ppid == getppid()){
             int enq_unit;
             button_data buf;
             button_data *msg = &buf;
@@ -319,6 +416,24 @@ for(int i=0; i<3; i++){
 
                 }
             }
+        }
+        else{
+            sleep(5);
+            attack_data buff;
+            attack_data *atk_retr = &buff;
+           // server_ready bfr;
+           // server_ready *win_but = &bfr;
+            receive_message_attack(queue_id[i],atk_retr,i+22);
+        /*  receive_message_int(queue_id[i],win_but,i+25);
+            if(win_but->value == 1){
+                player[i]->victories++;
+            } */
+            P_operation(unit_sem[i]);
+            for(int j=0; j<3;j++){
+                player[i]->unit[j] +=  atk_retr->unit[i];
+            }
+            V_operation(unit_sem[i]);
+            exit(1);
         }
     }
 }

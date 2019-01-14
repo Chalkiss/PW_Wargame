@@ -154,6 +154,10 @@ int main(int argc, char* argv[]){
         else if(other_button == 'v'|| other_button == 'b'|| other_button == 'n'){
             snd->unit_type = other_button;
             send_message_button(queue_id, snd, client_id+13);
+        }
+        else if (other_button == 's'){
+            snd->unit_type = other_button;
+            send_message_button(queue_id, snd, client_id+19);
         }        
     }
     return 0;
