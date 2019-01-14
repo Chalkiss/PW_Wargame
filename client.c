@@ -23,9 +23,10 @@ void cleanup(){
     detach_shmem(atk_shm);
     detach_shmem(endgame);
     printf("Odlaczono od pamieci wspoldzielonych\n");
-    endwin();
+    clear();
     echo();
     refresh();
+    endwin();
     exit(0);
 }
 

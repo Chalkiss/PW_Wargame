@@ -52,7 +52,8 @@ void pay_units(char unit, player *player, int resources_sem){
             }else{
                 unit = ']'; //unit error type, nie trenuj jednostek
                 V_operation(resources_sem);
-            }            break;
+            }            
+            break;
 
         case 'r':
             if(player -> resources_amount >= 550){
@@ -110,33 +111,27 @@ void mark_attack(char command, player *player, attack_data *atkb, int unit_sem){
             player->unit[0]--;
             atkb ->unit[0]++;
             V_operation(unit_sem);
-            break;
         }
-        else{
-            break;
-        }
+        break;
+        
         case 'b':
         if(player->unit[1] > 0){
             P_operation(unit_sem);
             player->unit[1]--;
             atkb ->unit[1]++;
             V_operation(unit_sem);
-            break;
         }
-        else{
-            break;
-        }    
+        break;
+           
         case 'n':
         if(player->unit[2] > 0){
             P_operation(unit_sem);
             player->unit[2]--;
             atkb ->unit[2]++;
             V_operation(unit_sem);
-            break;
-        }
-        else{
-            break;
-        }
+           }
+         break;
+        
         
     }
 }
@@ -418,20 +413,17 @@ for(int i=0; i<3; i++){
                             units[j] = 0;
                         }
                         V_operation(atk_sem[i]);
-                    }
-                    else{
+                    }else{
                         break;
-                    }
+                    }   
                 }
-
             }
             if(*endgame == 1){
                 exit(0);
             }
 
-        }
-        
-        else if (training_ppid == getppid()){
+        }        
+        if (training_ppid == getppid()){
             int enq_unit;
             button_data buf;
             button_data *msg = &buf;
@@ -454,6 +446,7 @@ for(int i=0; i<3; i++){
             attack_data buff;
             attack_data *atk_retr = &buff;
             receive_message_attack(queue_id[i],atk_retr,i+22);
+            printf("jednostki wróciły: %d %d %d\n",atk_retr->unit[0],atk_retr->unit[1],atk_retr->unit[2]);
             P_operation(unit_sem[i]);
             for(int j=0; j<3;j++){
                 player[i]->unit[j] +=  atk_retr->unit[j];
