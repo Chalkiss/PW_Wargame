@@ -8,4 +8,6 @@ int initialize_semaphore(int semid);
 int remove_semaphore(int semid);
 int P_operation(int semid);
 int V_operation(int semid);
+int semaphore_state(int semid);
+
 #endif

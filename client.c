@@ -16,15 +16,17 @@
 #include <ncurses.h>
 
 int *player_connected;
+int *endgame;
 int *atk_shm;
 void cleanup(){
     detach_shmem(player_connected);
     detach_shmem(atk_shm);
+    detach_shmem(endgame);
     printf("Odlaczono od pamieci wspoldzielonych\n");
-    clear();
+    endwin();
     echo();
     refresh();
-    exit(1);
+    exit(0);
 }
 
 int main(int argc, char* argv[]){
@@ -77,6 +79,11 @@ int main(int argc, char* argv[]){
     attack_data bum;
     attack_data *atk_back = &bum;
 
+    int end_shm_id;
+    end_shm_id = create_shmem_end();
+    endgame = att_shmem(end_shm_id);
+    *endgame = 0;
+
         switch(client_id){
     case 0:
         atk1 = '1';
@@ -93,11 +100,11 @@ int main(int argc, char* argv[]){
     }
     initscr();
     mvprintw(4,5,"Resources: ");
-    mvprintw(9,5,"Workers: ");
-    mvprintw(7,5,"Units: ");
-    mvprintw(12,5,"Infantry: ");
-    mvprintw(15,5,"Heavy Infantry: ");
-    mvprintw(18,5,"Cavalry: ");
+    mvprintw(9,5,"Workers: (Q) ");
+    mvprintw(7,5,"Units: (press button to train)");
+    mvprintw(12,5,"Infantry: (W)");
+    mvprintw(15,5,"Heavy Infantry: (E)");
+    mvprintw(18,5,"Cavalry: (R)");
     mvprintw(4,55,"Whom to attack?");
     mvprintw(13,55,"Victories: ");
     mvprintw(5, 57,"%c",atk1);
@@ -110,7 +117,6 @@ int main(int argc, char* argv[]){
     mvprintw(14,30, "Infantry:");
     mvprintw(15,30, "Heavy Infantry:");
     mvprintw(16,30, "Cavalry:");
-    mvprintw(0,0,"%d atakuje %d, jednostki %d %d %d\n", atk->attacker_id,atk->defender_id, atk->unit[0],atk->unit[1],atk->unit[2]);
     timeout(0);
     noecho();
 
@@ -118,17 +124,17 @@ int main(int argc, char* argv[]){
 
 
     refresh();   
-    while(1){
+    while(*endgame != 1){
         signal(SIGINT, cleanup);
         msg_received = receive_message(queue_id, rec, client_id+1);
         msg_received_end = receive_message_int(queue_id, end,200+client_id);
         msg_received_marked = receive_message_attack(queue_id,atk_back,client_id+16);
         if(msg_received != -1){
-                mvprintw(5, 5,"%d", rec->resources_amount);
-                mvprintw(10, 5,"%d", rec->workers);
-                mvprintw(13, 5,"%d", rec->unit[0]);
-                mvprintw(16, 5,"%d", rec->unit[1]);
-                mvprintw(19, 5,"%d", rec->unit[2]);
+                mvprintw(5, 5,"%d      ", rec->resources_amount);
+                mvprintw(10, 5,"%d     ", rec->workers);
+                mvprintw(13, 5,"%d     ", rec->unit[0]);
+                mvprintw(16, 5,"%d     ", rec->unit[1]);
+                mvprintw(19, 5,"%d     ", rec->unit[2]);
                 mvprintw(14, 55,"%d", rec->victories);
                 refresh();
             }
@@ -160,6 +166,8 @@ int main(int argc, char* argv[]){
             send_message_button(queue_id, snd, client_id+19);
         }        
     }
+    cleanup();
+    exit(0);
     return 0;
 }
 

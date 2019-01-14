@@ -158,11 +158,12 @@ return attack_power;
 }
 
 double defense_strength(player *player){
-double defense_power = player->unit[0]*1.0 + player->unit[1]*1.5 +player->unit[2]*3.5;
+double defense_power = player->unit[0]*1.2 + player->unit[1]*3.0 +player->unit[2]*1.2;
 return defense_power;
 }
 
-void recount_units(player *player, attack_data *atk, int unit_sem){
+int recount_units(player *player, attack_data *atk, int unit_sem){
+    int win;
     int soldiers_left_param;
     int soldiers_left_param2;
     double attack_power;
@@ -173,33 +174,42 @@ void recount_units(player *player, attack_data *atk, int unit_sem){
     defense_power = defense_strength(player);
     V_operation(unit_sem);
     printf("Siła obrony to: %f\n",defense_power);
-    if(defense_power < 1.0){
-        defense_power = 1.0;
-    }
     if(attack_power - defense_power > 0){
-        soldiers_left_param = attack_power/defense_power;
+        if(defense_power < 1.0){
+            defense_power = 1.0;
+        }else if(attack_power <1.0){
+            attack_power = 1.0;
+        }
+        soldiers_left_param = defense_power/attack_power;
         P_operation(unit_sem);
         for(int i=0; i<3; i++){
             player->unit[i] = 0;
             atk->unit[i] -= ceiling(atk->unit[i] * soldiers_left_param);
         }
         V_operation(unit_sem);
+        win = 1;
     }else{
-        soldiers_left_param = attack_power/defense_power;
+        if(defense_power < 1.0){
+            defense_power = 1.0;
+        }else if(attack_power <1.0){
+            attack_power = 1.0;
+        }
+        soldiers_left_param = defense_power/attack_power;
         P_operation(unit_sem);
         for(int i=0;i<3;i++){
-            player->unit[i] -= ceiling(player->unit[i]*soldiers_left_param);
+            player->unit[i] -= ceiling(player->unit[i] * soldiers_left_param);
         }
         V_operation(unit_sem);
         if(attack_power < 1.0){
             attack_power = 1.0;
         }
-        soldiers_left_param2 = defense_power/attack_power;
+        soldiers_left_param2 = attack_power/defense_power;
         for(int i=0;i<3;i++){
-            atk -> unit[i] -= ceiling(atk->unit[i]*soldiers_left_param2); 
+            atk -> unit[i] -= ceiling(atk->unit[i] * soldiers_left_param2); 
         }
+        win = 0;
     }
-
+    return win;
 }
 
 
@@ -216,6 +226,8 @@ player *detach_player[3];
 attack_data *detach_atk[3];
 int shm_atk_id[3];
 int atk_sem[3];
+int end_shm_id;
+int *endgame;
 
 void cleanup (){
     sr->value = 1;
@@ -228,6 +240,8 @@ void cleanup (){
         delete_shmem_users(shm_players_ids[i]);
         delete_shmem_users(shm_atk_id[i]);
     }
+    detach_shmem(endgame);
+    delete_shmem_users(end_shm_id);
     sleep(1);
     for(int i=0; i<3;i++){
         remove_queue(queue_id[i]);
@@ -235,7 +249,7 @@ void cleanup (){
         remove_semaphore(atk_sem[i]);
     }
     remove_semaphore(resources_sem);
-    exit(1);
+    exit(0);
 }
 
 int main() {
@@ -248,6 +262,9 @@ int main() {
         queue_id[i] = create_queue_init(i);
 }
 
+    end_shm_id = create_shmem_end();
+    endgame = att_shmem(end_shm_id);
+    *endgame = 0;
 
     while ( *player_connected[0]!=1 
         || *player_connected[1]!=1 || *player_connected[2]!=1 ){
@@ -312,6 +329,12 @@ if((check = initialize_semaphore(resources_sem))== 0){
                     printf("Updating resources\n");
                     for(int i=0; i<3;i++){
                         update_resources(queue_id[i], player[i], resources_sem);
+                        if(player[i]->victories == 5){
+                            printf("Grę wygrał gracz %d",i);
+                            *endgame = 1;
+                            sleep(2);
+                            cleanup();
+                        }
                         }
                     sleep(1);
                     signal(SIGINT, cleanup);                    
@@ -337,6 +360,7 @@ int atker, dfnder;
 int units[3];
 int parent;
 int training_ppid;
+int victory = 0;
 for(int i=0; i<3; i++){
     if(client_service_id[i] == 0){
         training_process_id = fork();
@@ -346,7 +370,7 @@ for(int i=0; i<3; i++){
         if(training_process_id != 0){
             button_data buf;
             button_data *msg = &buf;
-            while(1){
+            while(*endgame != 1){
                 rcv_data = receive_message_button(queue_id[i], rcv, i+4);
                 rcv_data_atk_who = receive_message_attack(queue_id[i],atk[i],i+10);
                 rcv_data_atk_unit = receive_message_button(queue_id[i],rcv,i+13);
@@ -383,11 +407,11 @@ for(int i=0; i<3; i++){
                     }
                     parent = fork();
                     if(parent !=0){
-                        recount_units(player[dfnder],atk[i],unit_sem[i]);
+                        victory = recount_units(player[dfnder], atk[i], unit_sem[i]);
                         send_message_attack(queue_id[i], atk[i],i+22);
-                      /*  if(victory == 1){
-                            send_message_int(queue_id[i],vic,i+25);
-                        }*/
+                        if(victory == 1){
+                            player[i]->victories++;
+                        }
                         dfnder = -3;
                         atker = -3;
                         for(int j=0; j<3;j++){
@@ -399,6 +423,10 @@ for(int i=0; i<3; i++){
                         break;
                     }
                 }
+
+            }
+            if(*endgame == 1){
+                exit(0);
             }
 
         }
@@ -408,7 +436,7 @@ for(int i=0; i<3; i++){
             button_data buf;
             button_data *msg = &buf;
             char unit;
-            while(1){
+            while(*endgame != 1){
                 enq_unit = receive_message_button(queue_id[i],msg,i+7);
                 if(enq_unit != -1){
                     unit = msg -> unit_type;
@@ -416,24 +444,22 @@ for(int i=0; i<3; i++){
 
                 }
             }
+
+            if(*endgame == 1){
+                exit(0);
+            }
         }
         else{
             sleep(5);
             attack_data buff;
             attack_data *atk_retr = &buff;
-           // server_ready bfr;
-           // server_ready *win_but = &bfr;
             receive_message_attack(queue_id[i],atk_retr,i+22);
-        /*  receive_message_int(queue_id[i],win_but,i+25);
-            if(win_but->value == 1){
-                player[i]->victories++;
-            } */
             P_operation(unit_sem[i]);
             for(int j=0; j<3;j++){
-                player[i]->unit[j] +=  atk_retr->unit[i];
+                player[i]->unit[j] +=  atk_retr->unit[j];
             }
             V_operation(unit_sem[i]);
-            exit(1);
+            exit(0);
         }
     }
 }
